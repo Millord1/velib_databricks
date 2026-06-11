@@ -25,6 +25,14 @@ class DatabaseConnector(ABC):
     def _get_password(self) -> str:
         ...
         
+    @abstractmethod
+    def __enter__(self):
+        ...
+        
+    @abstractmethod
+    def __exit__(self, exc_type, exc, tb):
+        ...
+        
     def get_ddl_queries(self) -> list[str]:
         return [
             # 1. Station Table 
@@ -197,7 +205,6 @@ class LocalPostgresConnector(DatabaseConnector):
         self.cursor = self.conn.cursor()
         
     def _create_tables(self) -> None:
-        print(f"[Local] Vérification et création du schéma des tables...")
         for query in self.get_ddl_queries():
             self.cursor.execute(query)
         
