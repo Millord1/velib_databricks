@@ -1,7 +1,7 @@
 # src/utils/db_factory.py
 import os
 from src.utils.database_connector import DatabaseConnector, JDBCSparkConnector, LocalPostgresConnector
-from dotenv import load_dotenv
+
 
 def get_db_connector() -> DatabaseConnector:
     
@@ -20,7 +20,12 @@ def get_db_connector() -> DatabaseConnector:
         
     else:
         print("Local env detected")
-        load_dotenv()
+        
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
             
         return LocalPostgresConnector(
             host=os.getenv("DB_HOST", "localhost"),

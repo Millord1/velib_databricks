@@ -12,6 +12,7 @@ class DatabaseConnector(ABC):
         self.port = port
         self.station_table = "station"
         self.releve_table = "releve"
+        self.weather_table = "meteo"
 
     @abstractmethod
     def save_data(self, df: DataFrame, table_name: str, mode: str = "append") -> None:
@@ -59,14 +60,27 @@ class DatabaseConnector(ABC):
                 station_id BIGINT REFERENCES {self.station_table}(station_id),
                 num_bikes_available INTEGER,
                 num_docks_available INTEGER,
-                releve_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """,
             # 4. Releve Index 
             f"""
             CREATE INDEX IF NOT EXISTS idx_{self.releve_table}_station_time 
             ON {self.releve_table} (station_id, releve_time DESC);
-            """
+            """,
+            
+            f"""
+            CREATE TABLE IF NOT EXISTS {self.weather_table} (
+                lat NUMERIC,
+                lon NUMERIC,
+                meteo_time TIMESTAMP,
+                temperature NUMERIC,
+                precipitation NUMERIC,
+                wind_speed NUMERIC,
+                inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (lat, lon, meteo_time)
+            );
+            """,
         ]
         
         
