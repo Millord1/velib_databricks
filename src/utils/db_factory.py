@@ -12,9 +12,9 @@ def get_db_connector() -> DatabaseConnector:
         print("Databricks env detected")
 
         return JDBCSparkConnector(
-            host=os.getenv("DB_HOST", "ton-rds-ou-supabase.com"),
-            user=os.getenv("DB_USER", "db_admin_prod"),
-            db_name=os.getenv("DB_NAME", "velib_prod"),
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER", "postgres"),
+            db_name=os.getenv("DB_NAME", "velib"),
             port=int(os.getenv("DB_PORT", 5432))
         )
         
@@ -30,6 +30,6 @@ def get_db_connector() -> DatabaseConnector:
         return LocalPostgresConnector(
             host=os.getenv("DB_HOST", "localhost"),
             user=os.getenv("DB_USER", "postgres"),
-            db_name=os.getenv("DB_NAME", "velib_dev"),
+            db_name=os.getenv("DB_NAME", "velib"),
             port=int(os.getenv("DB_PORT", 5432))
         )

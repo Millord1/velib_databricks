@@ -12,6 +12,7 @@ def download_and_move_dataset() -> str:
     target_file = os.path.join(target_dir, "velib_historique.parquet")
     
     if os.path.exists(target_file):
+        print(f"File {target_file} already existing, no download to do")
         return target_file
 
     cache_path = kagglehub.dataset_download("adrienmorel97/velib-data")
@@ -39,20 +40,21 @@ def clean_stations(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_meteo(df: pd.DataFrame) -> pd.DataFrame:
-    
     return (df[['lat', 'lon', 'ts_utc', 'temp_C', 'precip_mm', 'wind_mps']]
             .assign(
-                # for weather we only need hours, no ms
-                meteo_time=lambda x: pd.to_datetime(x['ts_utc'], unit='ms').dt.floor('h')
+                # keep only hour, no need to keep ms
+                meteo_time=lambda x: pd.to_datetime(x['ts_utc'], unit='ms').dt.floor('h'),
+                # creating area (trunc to 2 decimals), avoid massive redundancy
+                lat_zone=lambda x: x['lat'].round(2),
+                lon_zone=lambda x: x['lon'].round(2)
             )
             .rename(columns={
                 'temp_C': 'temperature',
                 'precip_mm': 'precipitation',
                 'wind_mps': 'wind_speed'
             })
-            [['lat', 'lon', 'meteo_time', 'temperature', 'precipitation', 'wind_speed']]
-            # composite key to avoid duplicates
-            .drop_duplicates(subset=['lat', 'lon', 'meteo_time']))
+            [['lat_zone', 'lon_zone', 'meteo_time', 'temperature', 'precipitation', 'wind_speed']]
+            .drop_duplicates(subset=['lat_zone', 'lon_zone', 'meteo_time']))
 
 
 def clean_releves(df: pd.DataFrame) -> pd.DataFrame:
@@ -79,7 +81,7 @@ def run_historical_pipeline(db: DatabaseConnector) -> None:
 
     spark = SparkSession.builder.getOrCreate()
 
-    print("Start pushing historical data to database...")
+    print("Preparing to push historical data to database...")
 
     with db as db_conn:
         spark_stations = spark.createDataFrame(df_stations_pd)

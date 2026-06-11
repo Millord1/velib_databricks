@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 import psycopg2
+from psycopg2.extras import execute_batch
 import os
 
 class DatabaseConnector(ABC):
@@ -13,13 +14,19 @@ class DatabaseConnector(ABC):
         self.station_table = "station"
         self.releve_table = "releve"
         self.weather_table = "meteo"
+        
+        self.tables = {
+            self.releve_table,
+            self.station_table,
+            self.weather_table
+        }
 
     @abstractmethod
     def save_data(self, df: DataFrame, table_name: str, mode: str = "append") -> None:
         ...
         
     @abstractmethod
-    def create_tables(self) -> None:
+    def _create_tables(self) -> None:
         ...
     
     @abstractmethod
@@ -60,6 +67,7 @@ class DatabaseConnector(ABC):
                 station_id BIGINT REFERENCES {self.station_table}(station_id),
                 num_bikes_available INTEGER,
                 num_docks_available INTEGER,
+                releve_time TIMESTAMP,
                 inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """,
@@ -80,7 +88,7 @@ class DatabaseConnector(ABC):
                 inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (lat, lon, meteo_time)
             );
-            """,
+            """
         ]
         
         
@@ -225,12 +233,23 @@ class LocalPostgresConnector(DatabaseConnector):
         self.conn.commit()
 
     def save_data(self, df: DataFrame, table_name: str, mode: str = "append") -> None:
-        
-        if table_name is not self.station_table or not self.releve_table:
-            raise NameError("Table name not available")
+        if table_name not in self.tables:
+            raise NameError(f"Table name '{table_name}' not available. Available: {self.tables}")
 
         pandas_df = df.toPandas()
         
-        # TODO push data
-
-        self.conn.commit()
+        columns = ", ".join(pandas_df.columns)
+        placeholders = ", ".join(["%s"] * len(pandas_df.columns))
+        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders});"
+        
+        data_to_insert = [tuple(x) for x in pandas_df.to_numpy()]
+        
+        print(f"Inserting {len(data_to_insert)} lines into {table_name}...", flush=True)
+        try:
+            execute_batch(self.cursor, query, data_to_insert, page_size=10000)
+            self.conn.commit()
+            print("Insertion succesfull")
+        except Exception as e:
+            self.conn.rollback()
+            print(f"Err during insertion, rollback : {e}")
+            raise e

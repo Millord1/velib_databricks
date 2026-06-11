@@ -17,7 +17,7 @@ def main():
         db_connector = get_db_connector()
         
         if mode == "historical":
-            print("Start import historical data")
+            print("Start importing historical data")
             run_historical_pipeline(db_connector)
             
         elif mode == "incremental":
