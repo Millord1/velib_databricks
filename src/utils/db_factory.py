@@ -1,6 +1,6 @@
 # src/utils/db_factory.py
 import os
-from src.utils.database_connector import DatabaseConnector, JDBCSparkConnector, LocalPostgresConnector
+from src.utils.database_connector import DatabaseConnector, DatabricksDeltaConnector, LocalPostgresConnector
 
 
 def get_db_connector() -> DatabaseConnector:
@@ -11,7 +11,7 @@ def get_db_connector() -> DatabaseConnector:
     if is_databricks:
         print("Databricks env detected")
 
-        return JDBCSparkConnector(
+        return DatabricksDeltaConnector(
             host=os.getenv("DB_HOST"),
             user=os.getenv("DB_USER", "postgres"),
             db_name=os.getenv("DB_NAME", "velib"),

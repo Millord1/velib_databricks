@@ -91,82 +91,37 @@ class DatabaseConnector(ABC):
             """
         ]
         
-        
-        
-class JDBCSparkConnector(DatabaseConnector):
+
+class DatabricksDeltaConnector:
     
-    def __init__(self, host: str, user: str, db_name: str, port: int):
+    def __init__(self, host: str, user: str, port: int,  db_name: str = "default"):
         super().__init__(host, user, db_name, port)
-        
-        self.jdbc_url = f"jdbc:postgresql://{self.host}:{self.port}/{self.db_name}"
-        
-        spark = SparkSession.builder.getOrCreate()
-        self.jvm = spark._jvm
-        
-        self.db_properties = {
-            "user": self.user,
-            "password": self._get_password(),
-            "driver": "org.postgresql.Driver"
-        }
-        
-        self.conn = None
-        self.stmt = None
+        self.spark = SparkSession.builder.getOrCreate()
 
     def __enter__(self):
         self._initialize_database()
-        self._connect(self.jdbc_url)
         self._create_tables()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.stmt:
-            self.stmt.close()
-        if self.conn:
-            self.conn.close()
+        pass
             
-    def _get_password(self) -> str:
-        try:
-            import dbutils
-            return dbutils.secrets.get(scope="portfolio_secrets", key="postgres_password")
-        except (NameError, ModuleNotFoundError):
-            return os.getenv("POSTGRES_PASSWORD")
-
-    def _connect(self, url: str):
-        props = self.jvm.java.util.Properties()
-        props.setProperty("user", self.user)
-        props.setProperty("password", self._get_password())
-        
-        self.conn = self.jvm.java.sql.DriverManager.getConnection(url, props)
-        self.stmt = self.conn.createStatement()
-
     def _initialize_database(self) -> None:
-        url_default = f"jdbc:postgresql://{self.host}:{self.port}/postgres"
-        
-        self._connect(url_default)
-        rs = self.stmt.executeQuery(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{self.db_name}'")
-        
-        if not rs.next():
-            self.stmt.executeUpdate(f"CREATE DATABASE {self.db_name}")
-            
-        rs.close()
-        self.stmt.close()
+        self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {self.db_name}")
 
     def _create_tables(self) -> None:
-        for query in self.get_ddl_queries():
-            self.stmt.executeUpdate(query)
+        pass
 
     def save_data(self, df: DataFrame, table_name: str, mode: str = "append") -> None:
+        if table_name not in self.tables:
+            raise NameError(f"Table name '{table_name}' not available")
         
-        if table_name is not self.station_table or not self.releve_table:
-            raise NameError("Table name not available")
+        full_table_name = f"{self.db_name}.{table_name}"
         
         df.write \
-            .format("jdbc") \
-            .option("url", self.jdbc_url) \
-            .option("dbtable", table_name) \
-            .options(**self.db_properties) \
+            .format("delta") \
             .mode(mode) \
-            .save()
+            .saveAsTable(full_table_name)
             
             
 
