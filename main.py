@@ -1,9 +1,35 @@
+%restart_python
+
 import sys
 import os
 
+is_databricks = "DATABRICKS_RUNTIME_VERSION" in os.environ
+
+if is_databricks:
+    try:
+        import IPython
+        ipython = IPython.get_ipython()
+        if ipython is not None:
+            ipython.run_line_magic("pip", "install -r requirements.txt")
+    except Exception as e:
+            print(f"Err loading modules : {e}")
+
+    try:
+        root_path = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        root_path = os.getcwd()
+
+    if root_path not in sys.path:
+        sys.path.append(root_path)
+
 def main():
     # Define main.py absolute path
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        # Local
+        root_path = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # Databricks
+        root_path = os.getcwd()
     
     # get arg from input (terminal)
     mode = sys.argv[1] if len(sys.argv) > 1 else "incremental"
