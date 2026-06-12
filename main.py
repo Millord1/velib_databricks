@@ -24,15 +24,11 @@ if is_databricks:
 
 
 def main():
-    try:
-        root_path = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
-        root_path = os.getcwd()
     
     # Gestion robuste des arguments (ignore le -f système de Databricks)
     parser = argparse.ArgumentParser(description="Pipeline Vélib")
     parser.add_argument("--mode", type=str, default="historical", choices=["historical", "incremental"])
-    args, unknown = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
     mode = args.mode
     
     from src.utils.db_factory import get_db_connector
