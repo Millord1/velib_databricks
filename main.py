@@ -39,7 +39,7 @@ def main():
     from src.pipelines.historical_pipeline import run_historical_pipeline
     
     try:
-        db_connector = get_db_connector()
+        db_connector = get_db_connector(is_databricks)
         
         if mode == "historical":
             print("Start importing historical data")

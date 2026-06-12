@@ -3,10 +3,7 @@ import os
 from src.utils.database_connector import DatabaseConnector, DatabricksDeltaConnector, LocalPostgresConnector
 
 
-def get_db_connector() -> DatabaseConnector:
-    
-    # Environment detection
-    is_databricks = "DATABRICKS_RUNTIME_VERSION" in os.environ
+def get_db_connector(is_databricks: bool) -> DatabaseConnector:
     
     if is_databricks:
         print("Databricks env detected")
