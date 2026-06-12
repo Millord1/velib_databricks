@@ -63,12 +63,12 @@ class DatabaseConnector(ABC):
             # 3. Releve Table 
             f"""
             CREATE TABLE IF NOT EXISTS {self.releve_table} (
-                id SERIAL PRIMARY KEY,
                 station_id BIGINT REFERENCES {self.station_table}(station_id),
                 num_bikes_available INTEGER,
                 num_docks_available INTEGER,
                 releve_time TIMESTAMP,
                 inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                PRIMARY KEY (releve_time, station_id)
             );
             """,
             # 4. Releve Index 
@@ -86,16 +86,17 @@ class DatabaseConnector(ABC):
                 precipitation NUMERIC,
                 wind_speed NUMERIC,
                 inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (lat, lon, meteo_time)
+                PRIMARY KEY (meteo_time, lat, lon)
             );
             """
         ]
         
 
-class DatabricksDeltaConnector:
+class DatabricksDeltaConnector(DatabaseConnector):
     
-    def __init__(self, host: str, user: str, port: int,  db_name: str = "default"):
+    def __init__(self, host: str, user: str, port: int,  db_name: str = "default", catalog_name: str = "workspace"):
         super().__init__(host, user, db_name, port)
+        self.catalog_name = catalog_name
         self.spark = SparkSession.builder.getOrCreate()
 
     def __enter__(self):
@@ -103,11 +104,18 @@ class DatabricksDeltaConnector:
         self._create_tables()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc, tb):
         pass
+    
+    def _get_password(self) -> str:
+        try:
+            import dbutils
+            return dbutils.secrets.get(scope="portfolio_secrets", key="postgres_password")
+        except (NameError, ModuleNotFoundError):
+            return os.getenv("POSTGRES_PASSWORD")
             
     def _initialize_database(self) -> None:
-        self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {self.db_name}")
+        self.spark.sql(f"CREATE DATABASE IF NOT EXISTS {self.catalog_name}.{self.db_name}")
 
     def _create_tables(self) -> None:
         pass
@@ -116,7 +124,8 @@ class DatabricksDeltaConnector:
         if table_name not in self.tables:
             raise NameError(f"Table name '{table_name}' not available")
         
-        full_table_name = f"{self.db_name}.{table_name}"
+        full_table_name = f"{self.catalog_name}.{self.db_name}.{table_name}"
+        print(f"Saving into {full_table_name}")
         
         df.write \
             .format("delta") \

@@ -84,12 +84,15 @@ def run_historical_pipeline(db: DatabaseConnector) -> None:
     print("Preparing to push historical data to database...")
 
     with db as db_conn:
+        print("Pushing stations data...")
         spark_stations = spark.createDataFrame(df_stations_pd)
-        db_conn.save_data(spark_stations, table_name=db_conn.station_table, mode="append")
+        db_conn.save_data(spark_stations, table_name=db_conn.station_table, mode="overwrite")
         
+        print("Pushing weather data...")
         spark_weather = spark.createDataFrame(df_meteo_pd)
         db_conn.save_data(spark_weather, table_name=db_conn.weather_table, mode="append")
         
+        print("Pushing releve data...")
         spark_releves = spark.createDataFrame(df_releves_pd)
         db_conn.save_data(spark_releves, table_name=db_conn.releve_table, mode="append")
         

@@ -1,7 +1,7 @@
-%restart_python
-
 import sys
 import os
+import traceback
+import argparse
 
 is_databricks = "DATABRICKS_RUNTIME_VERSION" in os.environ
 
@@ -12,7 +12,7 @@ if is_databricks:
         if ipython is not None:
             ipython.run_line_magic("pip", "install -r requirements.txt")
     except Exception as e:
-            print(f"Err loading modules : {e}")
+        print(f"Err loading modules : {e}")
 
     try:
         root_path = os.path.dirname(os.path.abspath(__file__))
@@ -22,24 +22,23 @@ if is_databricks:
     if root_path not in sys.path:
         sys.path.append(root_path)
 
+
 def main():
-    # Define main.py absolute path
     try:
-        # Local
         root_path = os.path.dirname(os.path.abspath(__file__))
     except NameError:
-        # Databricks
         root_path = os.getcwd()
     
-    # get arg from input (terminal)
-    mode = sys.argv[1] if len(sys.argv) > 1 else "incremental"
+    # Gestion robuste des arguments (ignore le -f système de Databricks)
+    parser = argparse.ArgumentParser(description="Pipeline Vélib")
+    parser.add_argument("--mode", type=str, default="historical", choices=["historical", "incremental"])
+    args, unknown = parser.parse_known_args()
+    mode = args.mode
     
     from src.utils.db_factory import get_db_connector
     from src.pipelines.historical_pipeline import run_historical_pipeline
-    # from src.pipelines.incremental_pipeline import run_incremental_pipeline
     
     try:
-        # get right db depending on environement (local or databricks) from db factory
         db_connector = get_db_connector()
         
         if mode == "historical":
@@ -48,14 +47,14 @@ def main():
             
         elif mode == "incremental":
             pass
-            # run_incremental_pipeline(db_connector)
-            
-        else:
-            sys.exit(1)
             
     except Exception as e:
-        print(e)
-        sys.exit(1)
+        raise e
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException as e:
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
